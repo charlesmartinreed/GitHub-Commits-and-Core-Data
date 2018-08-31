@@ -12,6 +12,8 @@
 		8C053A402138FE890086D222 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8C053A3E2138FE890086D222 /* Main.storyboard */; };
 		8C053A422138FE8B0086D222 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C053A412138FE8B0086D222 /* Assets.xcassets */; };
 		8C053A452138FE8B0086D222 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8C053A432138FE8B0086D222 /* LaunchScreen.storyboard */; };
+		8C053A4D2138FF3E0086D222 /* SwiftyJSON.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C053A4C2138FF3E0086D222 /* SwiftyJSON.swift */; };
+		8C053A4F2139007C0086D222 /* DetailViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C053A4E2139007C0086D222 /* DetailViewController.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -22,6 +24,8 @@
 		8C053A412138FE8B0086D222 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		8C053A442138FE8B0086D222 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8C053A462138FE8B0086D222 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		8C053A4C2138FF3E0086D222 /* SwiftyJSON.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SwiftyJSON.swift; sourceTree = "<group>"; };
+		8C053A4E2139007C0086D222 /* DetailViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetailViewController.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -55,7 +59,9 @@
 			isa = PBXGroup;
 			children = (
 				8C053A3A2138FE890086D222 /* AppDelegate.swift */,
+				8C053A4C2138FF3E0086D222 /* SwiftyJSON.swift */,
 				8C053A3C2138FE890086D222 /* ViewController.swift */,
+				8C053A4E2139007C0086D222 /* DetailViewController.swift */,
 				8C053A3E2138FE890086D222 /* Main.storyboard */,
 				8C053A412138FE8B0086D222 /* Assets.xcassets */,
 				8C053A432138FE8B0086D222 /* LaunchScreen.storyboard */,
@@ -135,8 +141,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				8C053A4D2138FF3E0086D222 /* SwiftyJSON.swift in Sources */,
 				8C053A3D2138FE890086D222 /* ViewController.swift in Sources */,
 				8C053A3B2138FE890086D222 /* AppDelegate.swift in Sources */,
+				8C053A4F2139007C0086D222 /* DetailViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
