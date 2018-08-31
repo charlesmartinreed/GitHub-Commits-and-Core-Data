@@ -32,6 +32,10 @@ class ViewController: UITableViewController {
         
         //load the saved database, create it if it doesn't already exist
         container.loadPersistentStores { (storeDescription, error) in
+            //allow updates to objects with a bias toward objects in memory when items with same unique constraint in in conflict
+            //unique constraint for our Commit data model is the "sha" attribute
+            self.container.viewContext.mergePolicy = NSMergeByPropertyObjectTrumpMergePolicy
+            
             if let error = error {
                 print("Unresolved error \(error)")
             }
