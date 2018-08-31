@@ -15,6 +15,8 @@ class ViewController: UITableViewController {
     //think of the NSPersistentContainer as the staging area where you create, read, update or delete data before committing to the SQLite database underpinning Core Data.
     var container: NSPersistentContainer!
     
+    var commits = [Commit]()
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         
@@ -38,6 +40,9 @@ class ViewController: UITableViewController {
         //calling our fetch method
         performSelector(inBackground: #selector(fetchCommits), with: nil)
         
+        //loading our fetched data
+        loadSavedData()
+        
         //Xcode code generation in action - the Commit Core Data entity is converted into a Swift class named Commit, dynamically, when we build the app.
         //all of these properties are optional, even though we marked them as non-optional in the attributes editor
         //let commit = Commit()
@@ -45,6 +50,28 @@ class ViewController: UITableViewController {
         //commit.url = "www.example.com"
         //commit.date = Date()
     }
+    
+    //MARK:- Table View methods
+    override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        return commits.count
+    }
+    
+    override func numberOfSections(in tableView: UITableView) -> Int {
+        return 1
+    }
+    
+    override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        //put the commit message and date into the cell's textLabel and detailTextLabel respectively
+        //keeping it simple, we'll use the Date object's description property to convert the info to a human readable string
+        let cell = tableView.dequeueReusableCell(withIdentifier: "Commit", for: indexPath)
+        
+        let commit = commits[indexPath.row]
+        cell.textLabel?.text = commit.message
+        cell.detailTextLabel?.text = commit.date.description
+        
+        return cell
+    }
+    
     
     //MARK:- JSON Fetch
     @objc func fetchCommits() {
@@ -69,6 +96,7 @@ class ViewController: UITableViewController {
                 }
                 
                 self.saveContext()
+                self.loadSavedData()
             }
         }
     }
@@ -92,6 +120,25 @@ class ViewController: UITableViewController {
             } catch {
                 print("An error occurred while saving: \(error)")
             }
+        }
+    }
+    
+    //MARK:- Retrieving data
+    func loadSavedData() {
+        
+        //create the request using our managed object context's fetch method
+        let request = Commit.createfetchRequest()
+        
+        //sort the request, by date, in descending order
+        let sort = NSSortDescriptor(key: "date", ascending: false)
+        request.sortDescriptors = [sort]
+        
+        do {
+            commits = try container.viewContext.fetch(request)
+            print("Got \(commits.count) commits")
+            tableView.reloadData()
+        } catch {
+            print("Fetch failed")
         }
     }
 
