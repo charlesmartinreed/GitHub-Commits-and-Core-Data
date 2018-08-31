@@ -17,8 +17,14 @@ class ViewController: UITableViewController {
     
     var commits = [Commit]()
     
+    //predicate is a filter - specify the criteria you want to match and Core Data will ensure that only matching objects get returned
+    //optional because fetch request takes a valid predicate OR a nil, no filter
+    var commitPredicate: NSPredicate?
+    
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Filter", style: .plain, target: self, action: #selector(changeFilter))
         
         //To set up the basic Core Data system:
         //1. Load ourdata model from the application bundle and create a NSManagedObjectModel object from it.
@@ -128,6 +134,42 @@ class ViewController: UITableViewController {
     }
     
     //MARK:- Retrieving data
+    @objc func changeFilter() {
+        //we need to create and utilize the predicate BEFORE loading the saved data
+        
+        let ac = UIAlertController(title: "Filter commits...", message: nil, preferredStyle: .actionSheet)
+        
+        //CONTAINS[c] means find any messages that contain fix, case-insensitive
+        ac.addAction(UIAlertAction(title: "Show only fixes", style: .default, handler: { [unowned self] _ in
+            self.commitPredicate = NSPredicate(format: "message CONTAINS[c] 'fix'")
+            self.loadSavedData()
+        }))
+        
+        //NOT inverts the search - this will only show items that don't begin with Merge Pull Request in our filtered table view
+        ac.addAction(UIAlertAction(title: "Ignore Pull Requests", style: .default, handler: { [unowned self] _ in
+            self.commitPredicate = NSPredicate(format: "NOT message BEGINSWITH 'Merge pull request'")
+            self.loadSavedData()
+        }))
+        
+        //Core Data can intelligently compare two dates. Also notice the use of Obj-C style format strings.
+        ac.addAction(UIAlertAction(title: "Show only recent", style: .default, handler: { [unowned self] _ in
+            let twelveHoursAgo = Date().addingTimeInterval(-43200)
+            
+            //Core Data wants to work with NSDate, not Date, so we actually have to typecast here
+            self.commitPredicate = NSPredicate(format: "date > %@", twelveHoursAgo as NSDate)
+            self.loadSavedData()
+        }))
+        
+        //show all the commits again
+        ac.addAction(UIAlertAction(title: "Show all commits", style: .default, handler: { [unowned self] _ in
+            self.commitPredicate = nil
+            self.loadSavedData()
+        }))
+        
+        ac.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+        present(ac, animated: true, completion: nil)
+    }
+    
     func loadSavedData() {
         
         //create the request using our managed object context's fetch method
@@ -136,6 +178,9 @@ class ViewController: UITableViewController {
         //sort the request, by date, in descending order
         let sort = NSSortDescriptor(key: "date", ascending: false)
         request.sortDescriptors = [sort]
+        
+        //add the predicate for our commit fetch request
+        request.predicate = commitPredicate
         
         do {
             commits = try container.viewContext.fetch(request)
