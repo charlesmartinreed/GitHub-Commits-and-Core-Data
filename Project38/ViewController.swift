@@ -77,9 +77,18 @@ class ViewController: UITableViewController {
         
         let commit = commits[indexPath.row]
         cell.textLabel?.text = commit.message
-        cell.detailTextLabel?.text = commit.date.description
+        cell.detailTextLabel?.text = "By \(commit.author.name) on \(commit.date.description)"
         
         return cell
+    }
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        //load a detail view from the storyboard, assign it the selected commit and push it onto the navigation stack
+        if let vc = storyboard?.instantiateViewController(withIdentifier: "Detail") as? DetailViewController {
+            vc.detailItem = commits[indexPath.row]
+            navigationController?.pushViewController(vc, animated: true)
+        }
+    
     }
     
     
@@ -120,6 +129,32 @@ class ViewController: UITableViewController {
         //if we can't convert the date from ISO because the date isn't in that format, then we creae a new date
         let formatter = ISO8601DateFormatter()
         commit.date = formatter.date(from: json["commit"]["committer"]["date"].stringValue) ?? Date()
+        
+        //MARK:- Attaching authors to commits
+        var commitAuthor: Author!
+        
+        //see if author exists
+        let authorRequest = Author.createFetchRequest()
+        authorRequest.predicate = NSPredicate(format: "name == %@", json["commit"]["committer"]["name"].stringValue)
+        
+        //we can use try? here because it doesn't really matter if it fails - we have a conditional that executes if nil
+        if let authors = try? container.viewContext.fetch(authorRequest) {
+            if authors.count > 0 {
+                //if this is not nil, then we already have this author
+                commitAuthor = authors[0]
+            }
+        }
+        
+        if commitAuthor == nil {
+            //save the author if we don't find them already
+            let author = Author(context: container.viewContext)
+            author.name = json["commit"]["committer"]["name"].stringValue
+            author.email = json["commit"]["committer"]["email"].stringValue
+            commitAuthor = author
+        }
+        
+        //use the author, either saved or new
+        commit.author = commitAuthor
     }
     
     func saveContext() {
@@ -160,6 +195,13 @@ class ViewController: UITableViewController {
             self.loadSavedData()
         }))
         
+        //author.name in the predicate instructs Core Data to intelligently find the author relation for our commit Class and then look up the name attribute from the matching object
+        //Joe Groff is a engineer at Apple, apparently.
+        ac.addAction(UIAlertAction(title: "Show only Durian commits", style: .default, handler: { [unowned self] _ in
+            self.commitPredicate = NSPredicate(format: "author.name == 'Joe Groff'")
+            self.loadSavedData()
+        }))
+        
         //show all the commits again
         ac.addAction(UIAlertAction(title: "Show all commits", style: .default, handler: { [unowned self] _ in
             self.commitPredicate = nil
@@ -173,7 +215,7 @@ class ViewController: UITableViewController {
     func loadSavedData() {
         
         //create the request using our managed object context's fetch method
-        let request = Commit.createfetchRequest()
+        let request = Commit.createFetchRequest()
         
         //sort the request, by date, in descending order
         let sort = NSSortDescriptor(key: "date", ascending: false)
