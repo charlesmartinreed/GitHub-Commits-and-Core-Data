@@ -9,17 +9,20 @@
 import UIKit
 import CoreData
 
-class ViewController: UITableViewController {
+class ViewController: UITableViewController, NSFetchedResultsControllerDelegate {
 
     //MARK:- Properties
     //think of the NSPersistentContainer as the staging area where you create, read, update or delete data before committing to the SQLite database underpinning Core Data.
     var container: NSPersistentContainer!
     
-    var commits = [Commit]()
+    //var commits = [Commit]() - no longer necessary since we're using a fetched results controller
     
     //predicate is a filter - specify the criteria you want to match and Core Data will ensure that only matching objects get returned
     //optional because fetch request takes a valid predicate OR a nil, no filter
     var commitPredicate: NSPredicate?
+    
+    //holds the fetched results controller for commits
+    var fetchedResultsController: NSFetchedResultsController<Commit>!
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -63,11 +66,14 @@ class ViewController: UITableViewController {
     
     //MARK:- Table View methods
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        return commits.count
+        let sectionInfo = fetchedResultsController.sections![section]
+        
+        //number of objects corresponds to the rows.
+        return sectionInfo.numberOfObjects
     }
     
     override func numberOfSections(in tableView: UITableView) -> Int {
-        return 1
+        return fetchedResultsController.sections?.count ?? 0
     }
     
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -75,7 +81,7 @@ class ViewController: UITableViewController {
         //keeping it simple, we'll use the Date object's description property to convert the info to a human readable string
         let cell = tableView.dequeueReusableCell(withIdentifier: "Commit", for: indexPath)
         
-        let commit = commits[indexPath.row]
+        let commit = fetchedResultsController.object(at: indexPath)
         cell.textLabel?.text = commit.message
         cell.detailTextLabel?.text = "By \(commit.author.name) on \(commit.date.description)"
         
@@ -85,18 +91,72 @@ class ViewController: UITableViewController {
     override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         //load a detail view from the storyboard, assign it the selected commit and push it onto the navigation stack
         if let vc = storyboard?.instantiateViewController(withIdentifier: "Detail") as? DetailViewController {
-            vc.detailItem = commits[indexPath.row]
+            vc.detailItem = fetchedResultsController.object(at: indexPath)
             navigationController?.pushViewController(vc, animated: true)
         }
     
     }
     
+    //this method detects changes in our object model using fetched results controller and reacts accordingly
+    func controller(_ controller: NSFetchedResultsController<NSFetchRequestResult>, didChange anObject: Any, at indexPath: IndexPath?, for type: NSFetchedResultsChangeType, newIndexPath: IndexPath?) {
+        switch type {
+        case .delete:
+            tableView.deleteRows(at: [indexPath!], with: .automatic)
+        default:
+            break
+            }
+        }
+    
+    //deleting commits from our app
+    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            
+            //with fetch results controller, we delete objects directly from the managed object context
+            let commit = fetchedResultsController.object(at: indexPath)
+            container.viewContext.delete(commit)
+            saveContext()
+            
+            //remove it from the managed object context, the commits array of Commit objects and delete the row form the table view
+            //container.viewContext.delete(commit)
+            //commits.remove(at: indexPath.row)
+            //tableView.deleteRows(at: [indexPath], with: .fade)
+            
+            //update our managed object context to reflect our changes
+            //saveContext()
+        }
+    }
+    
     
     //MARK:- JSON Fetch
+    func getNewestCommitDate() -> String {
+        let formatter = ISO8601DateFormatter()
+        
+        let newest = Commit.createFetchRequest()
+        let sort = NSSortDescriptor(key: "date", ascending: false)
+        newest.sortDescriptors = [sort]
+        
+        //only grab the first one
+        newest.fetchLimit = 1
+        
+        if let commits = try? container.viewContext.fetch(newest) {
+            if commits.count > 0 {
+                //return a string of a  date that would be second from the last commit
+                return formatter.string(from: commits[0].date.addingTimeInterval(1))
+            }
+        }
+        
+        //if no valid date is found, it'll return a date 0 seconds from 1/1/1970 forward, which reproduces the same behavior we had before introducing the date check/change
+        return formatter.string(from: Date(timeIntervalSince1970: 0))
+    }
+    
     @objc func fetchCommits() {
         
+        //get only the most recent commits
+        //the function returns a date formatted as a ISO-8601 string
+        let newestCommitDate = getNewestCommitDate()
+        
         //download the URL into a string object
-        if let data = try? String(contentsOf: URL(string: "https://api.github.com/repos/apple/swift/commits?per_page=100")!) {
+        if let data = try? String(contentsOf: URL(string: "https://api.github.com/repos/apple/swift/commits?per_page=100&since=\(newestCommitDate)")!) {
             
             let jsonCommits = JSON(parseJSON: data)
             
@@ -212,21 +272,34 @@ class ViewController: UITableViewController {
         present(ac, animated: true, completion: nil)
     }
     
+    //this works because we have "author.name" set as the sectionNameKeyPath in our fetched results controller constructor
+    override func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
+        return fetchedResultsController.sections![section].name
+    }
+    
     func loadSavedData() {
-        
-        //create the request using our managed object context's fetch method
-        let request = Commit.createFetchRequest()
-        
-        //sort the request, by date, in descending order
-        let sort = NSSortDescriptor(key: "date", ascending: false)
-        request.sortDescriptors = [sort]
+        //we'll be wrapping this inside of a fetchedResultsController to better manage objects
+        if fetchedResultsController == nil {
+            
+            //create the request using our managed object context's fetch method
+            let request = Commit.createFetchRequest()
+            
+            //sort the request, by date, in descending order
+            let sort = NSSortDescriptor(key: "author.name", ascending: false)
+            request.sortDescriptors = [sort]
+            request.fetchBatchSize = 20
+            
+            //having fetchedResultsController handle our retrieval and setting up its delegate
+            fetchedResultsController = NSFetchedResultsController(fetchRequest: request, managedObjectContext: container.viewContext, sectionNameKeyPath: "author.name", cacheName: nil)
+            fetchedResultsController.delegate = self
+            
+        }
         
         //add the predicate for our commit fetch request
-        request.predicate = commitPredicate
+        //request.predicate = commitPredicate
         
         do {
-            commits = try container.viewContext.fetch(request)
-            print("Got \(commits.count) commits")
+            try fetchedResultsController.performFetch()
             tableView.reloadData()
         } catch {
             print("Fetch failed")
